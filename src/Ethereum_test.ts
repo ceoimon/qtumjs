@@ -10,7 +10,7 @@ describe("Ethereum", () => {
   const eth = new Ethereum(ethRpcURL, repoData)
 
   it("can instantiate a contract", () => {
-    const contract = eth.contract("eth_Methods")
+    const contract = eth.contract("Methods")
     assert.instanceOf(contract, Contract)
   })
 

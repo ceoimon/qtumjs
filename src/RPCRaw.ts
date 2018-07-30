@@ -82,7 +82,6 @@ export class RPCRaw {
       throw new Error(`unknown method: ${method}`)
     }
 
-    // trying to call a qtum method on a ethereum network
     if (res.status === 405) {
       throw new Error(`not allowed method: ${method}`)
     }

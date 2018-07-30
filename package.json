@@ -1,6 +1,6 @@
 {
-  "name": "qtumjs",
-  "version": "1.9.0",
+  "name": "qtumjs-eth",
+  "version": "0.1.0",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "watch": "tsc -w",
     "build:umd": "webpack --config webpack.config.js"
   },
-  "npmName": "qtumjs",
+  "npmName": "qtumjs-eth",
   "npmFileMap": [
     {
       "basePath": "/dist/",
@@ -22,8 +22,8 @@
   "dependencies": {
     "axios": "^0.17.1",
     "btoa": "^1.1.2",
+    "ethjs-abi": "^0.2.1",
     "eventemitter3": "^2.0.3",
-    "qtumjs-ethjs-abi": "^1.0.3",
     "url-parse": "^1.1.9"
   },
   "devDependencies": {

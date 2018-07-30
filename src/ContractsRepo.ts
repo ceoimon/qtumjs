@@ -1,13 +1,12 @@
 import { IContractInfo, Contract } from "./Contract"
 import { IABIMethod } from "./ethjs-abi"
-import { QtumRPC } from "./QtumRPC"
 import { ContractLogDecoder } from "./abi"
 import { EventListener } from "./EventListener"
 import { EthRPC } from "./EthRPC"
 
 export interface IABIDefs {
   [key: string]: {
-    abi: IABIMethod[],
+    abi: IABIMethod[]
   }
 }
 
@@ -19,14 +18,14 @@ export interface IContractsRepoData {
    * Information about deployed contracts
    */
   contracts: {
-    [key: string]: IContractInfo,
-  },
+    [key: string]: IContractInfo
+  }
 
   /**
    * Information about deployed libraries
    */
   libraries: {
-    [key: string]: IContractInfo,
+    [key: string]: IContractInfo
   }
 
   /**
@@ -34,26 +33,26 @@ export interface IContractsRepoData {
    */
   related: {
     [key: string]: {
-      abi: IABIMethod[],
-    },
+      abi: IABIMethod[]
+    }
   }
 }
 
 /**
  * ContractsRepo contains the ABI definitions of all known contracts
  */
-export class ContractsRepo<TypeRPC extends QtumRPC | EthRPC> {
+export class ContractsRepo {
   /**
    * A logDecoder that knows about events defined in all known contracts.
    */
   public logDecoder: ContractLogDecoder
 
-  constructor(private rpc: TypeRPC, private repoData: IContractsRepoData) {
+  constructor(private rpc: EthRPC, private repoData: IContractsRepoData) {
     const eventABIs = this.allEventABIs()
-    this.logDecoder = new ContractLogDecoder(eventABIs, rpc instanceof QtumRPC)
+    this.logDecoder = new ContractLogDecoder(eventABIs)
   }
 
-  public contract(name: string): Contract<TypeRPC> {
+  public contract(name: string): Contract {
     const info = this.repoData.contracts[name]
     if (!info) {
       throw new Error(`cannot find contract: ${name}`)
@@ -63,7 +62,7 @@ export class ContractsRepo<TypeRPC extends QtumRPC | EthRPC> {
     return new Contract(this.rpc, info, { logDecoder: this.logDecoder })
   }
 
-  public eventListener(): EventListener<TypeRPC> {
+  public eventListener(): EventListener {
     return new EventListener(this.rpc, this.logDecoder)
   }
 
@@ -73,11 +72,7 @@ export class ContractsRepo<TypeRPC extends QtumRPC | EthRPC> {
   private allEventABIs(): IABIMethod[] {
     const allEventABIs: IABIMethod[] = []
 
-    const {
-      contracts,
-      libraries,
-      related,
-    } = this.repoData
+    const { contracts, libraries, related } = this.repoData
 
     if (contracts) {
       mergeDefs(contracts)

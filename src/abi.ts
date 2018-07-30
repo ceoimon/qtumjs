@@ -1,62 +1,41 @@
-import { IABIMethod, IETHABI, ILogItem, LogDecoder } from "./ethjs-abi"
+import {
+  IABIMethod,
+  IETHABI,
+  ILogItem,
+  LogDecoder,
+  IParsedLog
+} from "./ethjs-abi"
 
 const {
   decodeParams,
   encodeMethod,
   logDecoder
-} = require("qtumjs-ethjs-abi") as IETHABI
+} = require("ethjs-abi") as IETHABI
 
-export function encodeInputs(
-  method: IABIMethod,
-  args: any[] = [],
-  no0xPrefix = false
-): string {
-  const calldata = encodeMethod(method, args, no0xPrefix)
+export function encodeInputs(method: IABIMethod, args: any[] = []): string {
+  const calldata = encodeMethod(method, args)
   return calldata
 }
 
-export function decodeOutputs(
-  method: IABIMethod,
-  outputData: string,
-  no0xPrefix = false
-): any[] {
+export function decodeOutputs(method: IABIMethod, outputData: string): any[] {
   const types = method.outputs.map((output) => output.type)
 
-  const result = decodeParams(
-    [],
-    types,
-    outputData,
-    undefined,
-    Array(types.length),
-    no0xPrefix
-  )
+  const result: { length: number; [index: number]: any } = {
+    length: types.length,
+    ...decodeParams([], types, outputData)
+  }
 
-  return result
-}
-
-/**
- * A decoded Solidity event log
- */
-export interface IDecodedSolidityEvent {
-  /**
-   * The event's name
-   */
-  type: string
-
-  /**
-   * Event parameters as a key-value map
-   */
-  [key: string]: any
+  return Array.from(result)
 }
 
 export class ContractLogDecoder {
   private _decoder: LogDecoder
 
-  constructor(public abi: IABIMethod[], no0xPrefix = false) {
-    this._decoder = logDecoder(abi, true, no0xPrefix)
+  constructor(public abi: IABIMethod[]) {
+    this._decoder = logDecoder(abi, true)
   }
 
-  public decode(rawlog: ILogItem): IDecodedSolidityEvent | null {
+  public decode(rawlog: ILogItem): IParsedLog | null {
     const result = this._decoder([rawlog])
 
     if (result.length === 0) {
@@ -65,6 +44,6 @@ export class ContractLogDecoder {
 
     const log = result[0]
 
-    return log as any
+    return log
   }
 }

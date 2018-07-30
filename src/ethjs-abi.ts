@@ -43,37 +43,26 @@ interface IArrayish {
 }
 
 export interface IETHABI {
-  encodeMethod(method: IABIMethod, values: any[], no0xPrefix?: boolean): string
+  encodeMethod(method: IABIMethod, values: any[]): string
 
   // don't use this signature, just set `names` to []
   // decodeParams(
   //   types: string[],
   //   data: string,
   //   useNumberedParams?: boolean,
-  //   values?: Arrayish,
-  //   no0xPrefix?: boolean
   // ): IResult
   decodeParams<T>(
     names: string[],
     types: string[],
     data: string,
-    useNumberedParams?: boolean,
-    values?: T,
-    no0xPrefix?: boolean
-  ): T extends IArrayish ? any[] : IResult
+    useNumberedParams?: boolean
+  ): IResult
 
   decodeLogItem(
     eventObject: IABIMethod,
     log: ILogItem,
-    useNumberedParams?: boolean,
-    no0xPrefix?: boolean
+    useNumberedParams?: boolean
   ): IResult
 
-  logDecoder(
-    abi: IABIMethod[],
-    useNumberedParams?: boolean,
-    no0xPrefix?: boolean
-  ): LogDecoder
-
-  configure(opts: { noHexStringPrefix: boolean }): any
+  logDecoder(abi: IABIMethod[], useNumberedParams?: boolean): LogDecoder
 }

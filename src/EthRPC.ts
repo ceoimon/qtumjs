@@ -1,5 +1,4 @@
 import { RPCRaw } from "./RPCRaw"
-import { ITransactionLog, IPromiseCancel } from "./rpcCommonTypes"
 import {
   hexlify,
   hexStripZeros,
@@ -7,7 +6,33 @@ import {
   toNonNumberBlock
 } from "./convert"
 
-export interface IEthRPCSendTransactionRequest {
+export interface ITransactionLog {
+  address: string
+  topics: string[]
+  data: string
+}
+
+export interface IPromiseCancel<T> extends Promise<T> {
+  cancel: () => void
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?:
+      | ((value: T) => TResult1 | PromiseLike<TResult1>)
+      | undefined
+      | null,
+    onrejected?:
+      | ((reason: any) => TResult2 | PromiseLike<TResult2>)
+      | undefined
+      | null
+  ): IPromiseCancel<TResult1 | TResult2>
+  catch<TResult = never>(
+    onrejected?:
+      | ((reason: any) => TResult | PromiseLike<TResult>)
+      | undefined
+      | null
+  ): IPromiseCancel<T | TResult>
+}
+
+export interface ISendTransactionRequest {
   /**
    * (required) The contract address that will receive the funds and data.
    */
@@ -41,14 +66,14 @@ export interface IEthRPCSendTransactionRequest {
   nonce?: number | string
 }
 
-export interface IEthRPCSendTransactionResult {
+export interface ISendTransactionResult {
   /**
    * The transaction id.
    */
   txid: string
 }
 
-export interface IEthRPCCallRequest {
+export interface ICallRequest {
   /**
    * (required) The account address
    */
@@ -76,7 +101,7 @@ export interface IEthRPCCallRequest {
 /**
  * Basic information about a ethereum transaction submitted to the network.
  */
-export interface IEthRPCGetTransactionResult {
+export interface IGetTransactionResult {
   hash: string
   nonce: string
   from: string
@@ -91,9 +116,9 @@ export interface IEthRPCGetTransactionResult {
 }
 
 /**
- * Transaction receipt returned by qtumd
+ * Transaction receipt
  */
-export interface IEthRPCGetTransactionReceiptBase {
+export interface IGetTransactionReceiptBase {
   blockHash: string
   blockNumber: string
 
@@ -107,23 +132,23 @@ export interface IEthRPCGetTransactionReceiptBase {
   gasUsed: string
 
   contractAddress: string | null
+  logsBloom: string
+  status?: TRANSACTION_STATUS
 }
 
-export enum ETH_TRANSACTION_STATUS {
+export enum TRANSACTION_STATUS {
   FAILED,
   SUCCESS
 }
 
-export interface IEthRPCGetTransactionReceiptResult
-  extends IEthRPCGetTransactionReceiptBase {
+export interface IGetTransactionReceiptResult
+  extends IGetTransactionReceiptBase {
   logs: ITransactionLog[]
-  logsBloom: string
-  status?: ETH_TRANSACTION_STATUS
 }
 
 export type typeBlockTags = number | "latest" | "pending" | "earliest" | string
 
-export interface IEthRPCGetLogsRequest {
+export interface IGetLogsRequest {
   /**
    * The block number to start looking for logs.
    */
@@ -145,7 +170,7 @@ export interface IEthRPCGetLogsRequest {
   topics?: Array<string | null>
 }
 
-export interface IEthLogEntry {
+export interface ILogEntry {
   /**
    *  `true` when the log was removed, due to a chain reorganization. `false` if
    * its a valid log.
@@ -217,8 +242,8 @@ export class EthRPC extends RPCRaw {
   }
 
   public async sendTransaction(
-    req: IEthRPCSendTransactionRequest
-  ): Promise<IEthRPCSendTransactionResult> {
+    req: ISendTransactionRequest
+  ): Promise<ISendTransactionResult> {
     const { data } = req
     const { blockNumber: _, ...encodedReq } = await this.encodeReq(req)
 
@@ -235,7 +260,7 @@ export class EthRPC extends RPCRaw {
     }
   }
 
-  public async call(req: IEthRPCCallRequest): Promise<string> {
+  public async call(req: ICallRequest): Promise<string> {
     const { data, from } = req
     const {
       from: _from,
@@ -260,16 +285,16 @@ export class EthRPC extends RPCRaw {
 
   public async getTransaction(
     txid: string
-  ): Promise<IEthRPCGetTransactionResult | null> {
-    const args = [txid]
+  ): Promise<IGetTransactionResult | null> {
+    const args = [add0xPrefix(txid)]
 
     return this.rawCall("eth_getTransactionByHash", args)
   }
 
   public async getTransactionReceipt(
     txid: string
-  ): Promise<IEthRPCGetTransactionReceiptResult | null> {
-    const receipt = await this.rawCall("eth_getTransactionReceipt", [txid])
+  ): Promise<IGetTransactionReceiptResult | null> {
+    const receipt = await this.rawCall("eth_getTransactionReceipt", [add0xPrefix(txid)])
     if (receipt == null) {
       return null
     }
@@ -328,9 +353,7 @@ export class EthRPC extends RPCRaw {
     ])
   }
 
-  public getLogs(
-    req: IEthRPCGetLogsRequest = {}
-  ): IPromiseCancel<IEthLogEntry[]> {
+  public getLogs(req: IGetLogsRequest = {}): IPromiseCancel<ILogEntry[]> {
     const cancelTokenSource = this.cancelTokenSource()
 
     const fromBlock = toNonNumberBlock(req.fromBlock)
@@ -367,7 +390,7 @@ export class EthRPC extends RPCRaw {
   }
 
   private async encodeReq(
-    req: IEthRPCCallRequest | IEthRPCSendTransactionRequest,
+    req: ICallRequest | ISendTransactionRequest,
     isSend = true
   ): Promise<{
     to: string
@@ -383,8 +406,8 @@ export class EthRPC extends RPCRaw {
       gasLimit,
       nonce: configNonce,
       value: configValue
-    } = req as IEthRPCSendTransactionRequest
-    const { blockNumber: configBlockNumber } = req as IEthRPCCallRequest
+    } = req as ISendTransactionRequest
+    const { blockNumber: configBlockNumber } = req as ICallRequest
     let from = req.from
     if (from != null) {
       from = add0xPrefix(from)

@@ -1,82 +1,47 @@
-import { IABIMethod } from "./ethjs-abi"
+import { IABIMethod, IParsedLog } from "./ethjs-abi"
 import { EventEmitter } from "eventemitter3"
 
-import {
-  decodeOutputs,
-  encodeInputs,
-  ContractLogDecoder,
-  IDecodedSolidityEvent
-} from "./abi"
-
-import {
-  IQtumRPCCallResult,
-  IQtumRPCGetTransactionReceiptBase,
-  IQtumRPCGetTransactionReceiptResult,
-  IQtumRPCGetTransactionResult,
-  QtumRPC,
-  IQtumRPCGetLogsRequest,
-  IQtumLogEntry,
-  IQtumRPCSendTransactionResult
-} from "./QtumRPC"
+import { decodeOutputs, encodeInputs, ContractLogDecoder } from "./abi"
 
 import { TxReceiptPromise } from "./TxReceiptPromise"
 
 import { MethodMap } from "./MethodMap"
 import {
   EthRPC,
-  IEthRPCGetTransactionResult,
-  IEthRPCGetTransactionReceiptBase,
-  IEthRPCSendTransactionResult,
-  IEthRPCGetTransactionReceiptResult,
+  IGetTransactionResult,
+  IGetTransactionReceiptBase,
+  ISendTransactionResult,
+  IGetTransactionReceiptResult,
   typeBlockTags,
-  IEthLogEntry,
-  IEthRPCGetLogsRequest
+  ILogEntry,
+  IGetLogsRequest,
+  ITransactionLog
 } from "./EthRPC"
-import { ITransactionLog } from "./rpcCommonTypes"
 import { sleep } from "./sleep"
 import { ICancelFunction, ICancellableEventEmitter } from "./EventListener"
 import { add0xPrefix } from "./convert"
 
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
-
 /**
  * The callback function invoked for each additional confirmation
  */
-export type IQtumContractSendConfirmationHandler = (
-  tx: IQtumRPCGetTransactionResult,
-  receipt: IQtumTransactionReceipt
-) => any
-
-/**
- * The callback function invoked for each additional confirmation
- */
-export type IEthContractSendConfirmationHandler = (
-  tx: IEthRPCGetTransactionResult,
-  receipt: IEthTransactionReceipt
+export type IContractSendConfirmationHandler = (
+  tx: IGetTransactionResult,
+  receipt: ITransactionReceipt
 ) => any
 
 /**
  * @param n Number of confirmations to wait for
  * @param handler The callback function invoked for each additional confirmation
  */
-export type IQtumContractSendConfirmFunction = (
+export type IContractSendConfirmFunction = (
   n?: number,
-  handler?: IQtumContractSendConfirmationHandler
-) => Promise<IQtumTransactionReceipt>
-
-/**
- * @param n Number of confirmations to wait for
- * @param handler The callback function invoked for each additional confirmation
- */
-export type IEthContractSendConfirmFunction = (
-  n?: number,
-  handler?: IEthContractSendConfirmationHandler
-) => Promise<IEthTransactionReceipt>
+  handler?: IContractSendConfirmationHandler
+) => Promise<ITransactionReceipt>
 
 /**
  * Result of contract send.
  */
-export interface IQtumContractSendResult extends IQtumRPCGetTransactionResult {
+export interface IContractSendResult extends IGetTransactionResult {
   /**
    * Name of contract method invoked.
    */
@@ -85,22 +50,7 @@ export interface IQtumContractSendResult extends IQtumRPCGetTransactionResult {
   /**
    * Wait for transaction confirmations.
    */
-  confirm: IQtumContractSendConfirmFunction
-}
-
-/**
- * Result of contract send.
- */
-export interface IEthContractSendResult extends IEthRPCGetTransactionResult {
-  /**
-   * Name of contract method invoked.
-   */
-  method: string
-
-  /**
-   * Wait for transaction confirmations.
-   */
-  confirm: IEthContractSendConfirmFunction
+  confirm: IContractSendConfirmFunction
 }
 
 /**
@@ -140,7 +90,7 @@ export interface IDeployedContractInfo extends IContractInfo {
 /**
  * The result of calling a contract method, with decoded outputs.
  */
-export interface ICallResult<T extends QtumRPC | EthRPC> {
+export interface ICallResult {
   /**
    * ABI-decoded outputs
    */
@@ -150,17 +100,17 @@ export interface ICallResult<T extends QtumRPC | EthRPC> {
    * ABI-decoded logs
    * note: ethereum call result will not contain any logs
    */
-  logs: Array<IDecodedSolidityEvent | null>
+  logs: Array<IParsedLog | null>
 
-  rawResult: T extends QtumRPC ? IQtumRPCCallResult : string
+  rawResult: string
 }
 
 /**
  * Options for `send` to a contract method.
  */
-export interface IContractSendRequestOptions<T extends QtumRPC | EthRPC> {
+export interface IContractSendRequestOptions {
   /**
-   * The amount in QTUM to send. eg 0.1, default: 0
+   * The amount in Ether to send. eg 0.1, default: 0
    */
   value?: number | string
 
@@ -170,122 +120,57 @@ export interface IContractSendRequestOptions<T extends QtumRPC | EthRPC> {
   gasLimit?: number | string
 
   /**
-   * Qtum price per gas unit, default: 0.00000001, min:0.00000001
+   * gasPrice
    */
   gasPrice?: number | string
 
   /**
-   * The quantum/ethereum address that will be used as sender.
+   * The ethereum address that will be used as sender.
    */
   from?: string
 
-  nonce?: T extends QtumRPC ? undefined : (number | string)
+  nonce?: number | string
 }
 
 /**
  * Options for `call` to a contract method.
  */
-export interface IContractCallRequestOptions<T extends QtumRPC | EthRPC> {
+export interface IContractCallRequestOptions {
   /**
    * The quantum/ethereum address that will be used as sender.
    */
   from?: string
 
-  gasLimit?: T extends QtumRPC ? undefined : (string | number)
-  gasPrice?: T extends QtumRPC ? undefined : (string | number)
-  value?: T extends QtumRPC ? undefined : (string | number)
-  blockNumber?: T extends QtumRPC ? undefined : typeBlockTags
+  gasLimit?: string | number
+  gasPrice?: string | number
+  value?: string | number
+  blockNumber?: typeBlockTags
 }
 
 /**
  * The transaction receipt for a `send` to a contract method, with the event
  * logs decoded.
  */
-export interface IEthTransactionReceipt
-  extends IEthRPCGetTransactionReceiptBase {
+export interface ITransactionReceipt extends IGetTransactionReceiptBase {
   /**
    * logs decoded using ABI
    */
-  logs: IDecodedSolidityEvent[]
+  logs: IParsedLog[]
 
   /**
    * undecoded logs
    */
   rawlogs: ITransactionLog[]
-}
-
-/**
- * The transaction receipt for a `send` to a contract method, with the event
- * logs decoded.
- */
-export interface IQtumTransactionReceipt
-  extends IQtumRPCGetTransactionReceiptBase {
-  /**
-   * logs decoded using ABI
-   */
-  logs: IDecodedSolidityEvent[]
-
-  /**
-   * undecoded logs
-   */
-  rawlogs: ITransactionLog[]
-}
-
-export interface IEthTransactionReceipt
-  extends IEthRPCGetTransactionReceiptBase {
-  /**
-   * logs decoded using ABI
-   */
-  logs: IDecodedSolidityEvent[]
-
-  /**
-   * undecoded logs
-   */
-  rawlogs: ITransactionLog[]
-}
-
-export interface IContractLog<T> extends IQtumLogEntry {
-  event: T
 }
 
 /**
  * A decoded contract event log.
  */
-export interface IQtumContractEventLog extends IQtumLogEntry {
+export interface IContractEventLog extends ILogEntry {
   /**
    * Solidity event, ABI decoded. Null if no ABI definition is found.
    */
-  event?: IDecodedSolidityEvent | null
-}
-
-/**
- * A decoded contract event log.
- */
-export interface IEthContractEventLog extends IEthLogEntry {
-  /**
-   * Solidity event, ABI decoded. Null if no ABI definition is found.
-   */
-  event?: IDecodedSolidityEvent | null
-}
-
-/**
- * Query result of a contract's event logs.
- */
-export interface IQtumContractEventLogs {
-  /**
-   * Event logs, ABI decoded.
-   */
-  entries: IQtumContractEventLog[]
-
-  /**
-   * Number of event logs returned.
-   */
-  count: number
-
-  /**
-   * The block number to start query for new event logs.
-   */
-  nextblock: number
+  event?: IParsedLog | null
 }
 
 export interface IContractInitOptions {
@@ -308,7 +193,7 @@ const ETH_HALF_ESTIMATED_AVERAGE_BLOCK_TIME = 7500
 /**
  * Contract represents a Smart Contract deployed on the blockchain.
  */
-export class Contract<TypeRPC extends QtumRPC | EthRPC> {
+export class Contract {
   /**
    * The contract's address as hex160
    */
@@ -328,16 +213,14 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
    * @param opts - init options
    */
   constructor(
-    private rpc: TypeRPC,
+    private rpc: EthRPC,
     public info: IContractInfo,
     opts: IContractInitOptions = {}
   ) {
     this.methodMap = new MethodMap(info.abi)
-    const isQtum = this.rpc instanceof QtumRPC
-    this.address = isQtum ? info.address : add0xPrefix(info.address)
+    this.address = add0xPrefix(info.address)
 
-    this._logDecoder =
-      opts.logDecoder || new ContractLogDecoder(this.info.abi, isQtum)
+    this._logDecoder = opts.logDecoder || new ContractLogDecoder(this.info.abi)
 
     // this._useBigNumber = false
   }
@@ -348,7 +231,7 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
       throw new Error(`Unknown method to call: ${method}`)
     }
 
-    return encodeInputs(methodABI, args, this.rpc instanceof QtumRPC)
+    return encodeInputs(methodABI, args)
   }
 
   /**
@@ -362,41 +245,21 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   public async rawCall(
     method: string,
     args: any[] = [],
-    opts: IContractCallRequestOptions<TypeRPC> = {}
-  ): Promise<TypeRPC extends QtumRPC ? IQtumRPCCallResult : string> {
+    opts: IContractCallRequestOptions = {}
+  ): Promise<string> {
     const calldata = this.encodeParams(method, args)
-    const { rpc } = this
 
-    if (rpc instanceof QtumRPC) {
-      const options = opts as IContractCallRequestOptions<QtumRPC>
-      const req = {
-        ...options,
-        from: options.from || this.info.sender,
-        to: this.address,
-        data: calldata
-      }
-
-      const resultTypeSafe: IQtumRPCCallResult = await rpc.call(req)
-      return resultTypeSafe as any
+    const req = {
+      ...opts,
+      to: this.address,
+      data: calldata
     }
 
-    if (rpc instanceof EthRPC) {
-      const options = opts as IContractCallRequestOptions<EthRPC>
-      const req = {
-        ...options,
-        to: this.address,
-        data: calldata
-      }
-
-      const resultTypeSafe: string = await rpc.call(req)
-      return resultTypeSafe as any
-    }
-
-    throw new Error("Unsupported rpc type")
+    return this.rpc.call(req)
   }
 
   /**
-   * Executes contract method on your own local qtumd node as a "simulation"
+   * Executes contract method on your own local ethereum node as a "simulation"
    * using `callcontract`. It is free, and does not actually modify the
    * blockchain.
    *
@@ -407,34 +270,17 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   public async call(
     method: string,
     args: any[] = [],
-    opts: IContractCallRequestOptions<TypeRPC> = {}
-  ): Promise<ICallResult<TypeRPC>> {
+    opts: IContractCallRequestOptions = {}
+  ): Promise<ICallResult> {
     const callResult = await this.rawCall(method, args, opts)
 
-    let output = callResult as string
-    const decodedLogs: Array<IDecodedSolidityEvent | null> = []
-    if (typeof callResult !== "string") {
-      const callResultTypeSafe = callResult as IQtumRPCCallResult
-      const exception = callResultTypeSafe.executionResult.excepted
-      if (exception !== "None") {
-        throw new Error(`Call exception: ${exception}`)
-      }
-
-      output = callResultTypeSafe.executionResult.output
-
-      callResultTypeSafe.transactionReceipt.log.forEach((rawLog) => {
-        decodedLogs.push(this._logDecoder.decode(rawLog))
-      })
-    }
+    const output = callResult
+    const decodedLogs: Array<IParsedLog | null> = []
 
     let decodedOutputs = []
     if (output !== "") {
       const methodABI = this.methodMap.findMethod(method, args)!
-      decodedOutputs = decodeOutputs(
-        methodABI,
-        output,
-        this.rpc instanceof QtumRPC
-      )
+      decodedOutputs = decodeOutputs(methodABI, output)
     }
 
     return {
@@ -456,7 +302,7 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   public async return(
     method: string,
     args: any[] = [],
-    opts: IContractCallRequestOptions<TypeRPC> = {}
+    opts: IContractCallRequestOptions = {}
   ): Promise<any> {
     const result = await this.call(method, args, opts)
     return result.outputs[0]
@@ -465,7 +311,7 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   public async returnNumber(
     method: string,
     args: any[] = [],
-    opts: IContractCallRequestOptions<TypeRPC> = {}
+    opts: IContractCallRequestOptions = {}
   ): Promise<number> {
     const result = await this.call(method, args, opts)
     const val = result.outputs[0]
@@ -489,7 +335,7 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   public async returnDate(
     method: string,
     args: any[] = [],
-    opts: IContractCallRequestOptions<TypeRPC> = {}
+    opts: IContractCallRequestOptions = {}
   ): Promise<Date> {
     const result = await this.return(method, args, opts)
     if (typeof result !== "number") {
@@ -507,32 +353,29 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
    *
    * @param targetBase The currency unit to convert to. If a number, it is
    * treated as the power of 10.
-   * In Qtum, -8 is satoshi, 0 is the canonical unit.
    * In Ethereum, 0 is wei, 9 is gwei, 18 is ether, etc.
    * @param method
    * @param args
    * @param opts
    */
   public async returnCurrency(
-    targetBase: TypeRPC extends QtumRPC
-      ? number | "qtum" | "btc" | "sat" | "satoshi"
-      : (
-          | number
-          | "ether"
-          | "milliether"
-          | "finney"
-          | "microether"
-          | "szabo"
-          | "gwei"
-          | "shannon"
-          | "mwei"
-          | "lovelace"
-          | "kwei"
-          | "babbage"
-          | "wei"),
+    targetBase:
+      | number
+      | "ether"
+      | "milliether"
+      | "finney"
+      | "microether"
+      | "szabo"
+      | "gwei"
+      | "shannon"
+      | "mwei"
+      | "lovelace"
+      | "kwei"
+      | "babbage"
+      | "wei",
     method: string,
     args: any[] = [],
-    opts: IContractCallRequestOptions<TypeRPC> = {}
+    opts: IContractCallRequestOptions = {}
   ): Promise<number> {
     let value = await this.return(method, args, opts)
 
@@ -552,15 +395,6 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
       base = targetBase
     } else {
       switch (targetBase) {
-        // qtum units
-        case "qtum":
-        case "btc":
-          base = 0
-          break
-        case "sat":
-        case "satoshi":
-          base = -8
-          break
         // ethereum units
         case "ether":
           base = 18
@@ -593,25 +427,14 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
       }
     }
 
-    const { rpc } = this
-    if (rpc instanceof QtumRPC) {
-      const satoshi = 1e-8
-
-      return (value * satoshi) / 10 ** base
-    }
-
-    if (rpc instanceof EthRPC) {
-      return value * 10 ** base
-    }
-
-    throw new Error("Unsupported rpc type")
+    return value * 10 ** base
   }
 
   public async returnAs<Type>(
     converter: (val: any) => Type | Promise<Type>,
     method: string,
     args: any[] = [],
-    opts: IContractCallRequestOptions<TypeRPC> = {}
+    opts: IContractCallRequestOptions = {}
   ): Promise<Type> {
     const value = await this.return(method, args, opts)
     return await converter(value)
@@ -628,12 +451,8 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   public async rawSend(
     method: string,
     args: any[],
-    opts: IContractSendRequestOptions<TypeRPC> = {}
-  ): Promise<
-    TypeRPC extends QtumRPC
-      ? IQtumRPCSendTransactionResult
-      : IEthRPCSendTransactionResult
-  > {
+    opts: IContractSendRequestOptions = {}
+  ): Promise<ISendTransactionResult> {
     // TODO opts: gas limit, gas price, sender address
     const methodABI = this.methodMap.findMethod(method, args)
     if (methodABI == null) {
@@ -644,39 +463,15 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
       throw new Error(`Cannot send to a constant method: ${method}`)
     }
 
-    const calldata = encodeInputs(methodABI, args, this.rpc instanceof QtumRPC)
-    const { rpc } = this
+    const calldata = encodeInputs(methodABI, args)
 
-    if (rpc instanceof QtumRPC) {
-      const options = opts as IContractSendRequestOptions<QtumRPC>
-      const req = {
-        ...options,
-        to: this.address,
-        data: calldata,
-        from: options.from || this.info.sender
-      }
-
-      const resultTypeSafe: IQtumRPCSendTransactionResult = await rpc.sendTransaction(
-        req
-      )
-      return resultTypeSafe as any
+    const req = {
+      ...opts,
+      to: this.address,
+      data: calldata
     }
 
-    if (rpc instanceof EthRPC) {
-      const options = opts as IContractSendRequestOptions<EthRPC>
-      const req = {
-        ...options,
-        to: this.address,
-        data: calldata
-      }
-
-      const resultTypeSafe: IEthRPCSendTransactionResult = await rpc.sendTransaction(
-        req
-      )
-      return resultTypeSafe as any
-    }
-
-    throw new Error("Unsupported rpc type")
+    return this.rpc.sendTransaction(req)
   }
 
   /**
@@ -689,43 +484,19 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   public async confirm(
     txid: string,
     confirm?: number,
-    onConfirm?: TypeRPC extends QtumRPC
-      ? IQtumContractSendConfirmationHandler
-      : IEthContractSendConfirmationHandler
-  ): Promise<IQtumTransactionReceipt> {
-    const { rpc } = this
-
-    if (rpc instanceof QtumRPC) {
-      const txrp = new TxReceiptPromise<QtumRPC>(rpc, txid)
-      if (onConfirm) {
-        txrp.onConfirm((tx2, receipt2) => {
-          const sendTxReceipt = this._makeSendTxReceipt(receipt2 as any)
-          const onConfirmTypeSafe = onConfirm as IQtumContractSendConfirmationHandler
-          onConfirmTypeSafe(tx2, sendTxReceipt as IQtumTransactionReceipt)
-        })
-      }
-
-      const receipt = await txrp.confirm(confirm)
-
-      return this._makeSendTxReceipt(receipt as any) as any
+    onConfirm?: IContractSendConfirmationHandler
+  ): Promise<ITransactionReceipt> {
+    const txrp = new TxReceiptPromise(this.rpc, txid)
+    if (onConfirm) {
+      txrp.onConfirm((tx2, receipt2) => {
+        const sendTxReceipt = this._makeSendTxReceipt(receipt2)
+        onConfirm(tx2, sendTxReceipt)
+      })
     }
 
-    if (rpc instanceof EthRPC) {
-      const txrp = new TxReceiptPromise<EthRPC>(rpc, txid)
-      if (onConfirm) {
-        txrp.onConfirm((tx2, receipt2) => {
-          const sendTxReceipt = this._makeSendTxReceipt(receipt2 as any)
-          const onConfirmTypeSafe = onConfirm as IEthContractSendConfirmationHandler
-          onConfirmTypeSafe(tx2, sendTxReceipt as IEthTransactionReceipt)
-        })
-      }
+    const receipt = await txrp.confirm(confirm)
 
-      const receipt = await txrp.confirm(confirm)
-
-      return this._makeSendTxReceipt(receipt as any) as any
-    }
-
-    throw new Error("Unsupported rpc type")
+    return this._makeSendTxReceipt(receipt)
   }
 
   /**
@@ -734,42 +505,20 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
    * @param txid transaction id. Must be an in-wallet transaction
    * @returns The receipt, or null if transaction is not yet confirmed.
    */
-  public async receipt(
-    txid: string
-  ): Promise<
-    TypeRPC extends QtumRPC
-      ? (IQtumTransactionReceipt | null)
-      : (IEthTransactionReceipt | null)
-  > {
-    const { rpc } = this
-    if (rpc instanceof QtumRPC) {
-      const receipt = await rpc.getTransactionReceipt({ txid })
-      if (!receipt) {
-        return null as any
-      }
-
-      return this._makeSendTxReceipt(receipt as any) as any
+  public async receipt(txid: string): Promise<ITransactionReceipt | null> {
+    const receipt = await this.rpc.getTransactionReceipt(txid)
+    if (!receipt) {
+      return null
     }
 
-    if (rpc instanceof EthRPC) {
-      const receipt = await rpc.getTransactionReceipt(txid)
-      if (!receipt) {
-        return null as any
-      }
-
-      return this._makeSendTxReceipt(receipt as any) as any
-    }
-
-    throw new Error("Unsupported rpc type")
+    return this._makeSendTxReceipt(receipt)
   }
 
   public async send(
     method: string,
     args: any[] = [],
-    opts: IContractSendRequestOptions<TypeRPC> = {}
-  ): Promise<
-    TypeRPC extends QtumRPC ? IQtumContractSendResult : IEthContractSendResult
-  > {
+    opts: IContractSendRequestOptions = {}
+  ): Promise<IContractSendResult> {
     const methodABI = this.methodMap.findMethod(method, args)
     if (methodABI == null) {
       throw new Error(`Unknown method to send: ${method}`)
@@ -779,37 +528,19 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
       throw new Error(`cannot send to a constant method: ${method}`)
     }
 
-    const calldata = encodeInputs(methodABI, args, this.rpc instanceof QtumRPC)
+    const calldata = encodeInputs(methodABI, args)
 
-    let txid: string
-    let transaction: IQtumRPCGetTransactionResult | IEthRPCGetTransactionResult
-    const { rpc } = this
-    if (rpc instanceof QtumRPC) {
-      const options = opts as IContractSendRequestOptions<QtumRPC>
-      const sentResult = await rpc.sendTransaction({
-        ...options,
-        from: options.from || this.info.sender,
-        to: this.address,
-        data: calldata
-      })
+    const sentResult = await this.rpc.sendTransaction({
+      ...opts,
+      data: calldata,
+      to: this.address
+    })
 
-      txid = sentResult.txid
-      transaction = await rpc.getTransaction({ txid })
-    } else if (rpc instanceof EthRPC) {
-      const options = opts as IContractSendRequestOptions<EthRPC>
-      const sentResult = await rpc.sendTransaction({
-        ...options,
-        data: calldata,
-        to: this.address
-      })
+    const txid = sentResult.txid
+    const transaction = (await this.rpc.getTransaction(txid))!
 
-      txid = sentResult.txid
-      transaction = (await rpc.getTransaction(txid))!
-    } else {
-      throw new Error("Unsupported rpc type")
-    }
-
-    const confirm = (n: number, handler?: any) => this.confirm(txid, n, handler)
+    const confirm = (n?: number, handler?: any) =>
+      this.confirm(txid, n, handler)
 
     const sendTx = {
       ...transaction,
@@ -817,7 +548,7 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
       confirm
     }
 
-    return sendTx as any
+    return sendTx
   }
 
   /**
@@ -825,17 +556,11 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
    * for logs from the beginning of the blockchain.
    * @param req
    */
-  public async logs(
-    req: TypeRPC extends QtumRPC
-      ? IQtumRPCGetLogsRequest
-      : IEthRPCGetLogsRequest = {} as any
-  ): Promise<
-    TypeRPC extends QtumRPC ? IQtumContractEventLogs : IEthContractEventLog[]
-  > {
+  public async logs(req: IGetLogsRequest = {}): Promise<IContractEventLog[]> {
     return this.getLogs({
       fromBlock: 0,
       toBlock: "latest",
-      ...(req as any)
+      ...req
     })
   }
 
@@ -844,74 +569,30 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
    * @param req (optional) IRPCWaitForLogsRequest
    */
   public async getLogs(
-    req: TypeRPC extends QtumRPC
-      ? IQtumRPCGetLogsRequest
-      : IEthRPCGetLogsRequest = {} as any
-  ): Promise<
-    TypeRPC extends QtumRPC ? IQtumContractEventLogs : IEthContractEventLog[]
-  > {
-    const { rpc } = this
-    if (rpc instanceof QtumRPC) {
-      const reqTypeSafe = req as IQtumRPCGetLogsRequest
-      const filter = reqTypeSafe.filter || {}
-      if (!filter.addresses) {
-        filter.addresses = [this.address]
+    req: IGetLogsRequest = {}
+  ): Promise<IContractEventLog[]> {
+    const result = await this.rpc.getLogs({
+      ...req,
+      address: this.address
+    })
+
+    const entries: IContractEventLog[] = result.map((entry) => {
+      const parsedLog = this.logDecoder.decode(entry)
+      return {
+        ...entry,
+        event: parsedLog
       }
+    })
 
-      const result = await rpc.getLogs({
-        ...reqTypeSafe,
-        filter
-      })
-
-      const entries = result.entries.map((entry) => {
-        const parsedLog = this.logDecoder.decode(entry)
-        return {
-          ...entry,
-          event: parsedLog
-        }
-      })
-
-      const resultTypeSafe: IQtumContractEventLogs = {
-        ...result,
-        entries
-      }
-
-      return resultTypeSafe as any
-    }
-
-    if (rpc instanceof EthRPC) {
-      const reqTypeSafe = req as IEthRPCGetLogsRequest
-      const result = await rpc.getLogs({
-        ...reqTypeSafe,
-        address: this.address
-      })
-
-      const entries: IEthContractEventLog[] = result.map((entry) => {
-        const parsedLog = this.logDecoder.decode(entry)
-        return {
-          ...entry,
-          event: parsedLog
-        }
-      })
-
-      return entries as any
-    }
-
-    throw new Error("Unsupported rpc type")
+    return entries
   }
 
   /**
    * Subscribe to contract's events, using callback interface.
    */
   public onLog(
-    fn: (
-      entry: TypeRPC extends QtumRPC
-        ? IQtumContractEventLog
-        : IEthContractEventLog
-    ) => void,
-    opts: TypeRPC extends QtumRPC
-      ? IQtumRPCGetLogsRequest
-      : IEthRPCGetLogsRequest = {} as any
+    fn: (entry: IContractEventLog) => void,
+    opts: IGetLogsRequest = {}
   ): ICancelFunction {
     let fromBlock = opts.fromBlock || "latest"
     let toBlock = opts.toBlock || "latest"
@@ -919,61 +600,40 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
     let canceled = false
     let latestBlockNum: number
     let isFirstFetch = true
-    const { rpc } = this
-    const isEth = rpc instanceof EthRPC
     const fetchToLatest = typeof fromBlock !== "number"
 
     const loop = async () => {
       while (!canceled) {
-        latestBlockNum = await rpc.getBlockNumber()
+        latestBlockNum = await this.rpc.getBlockNumber()
 
-        if (isEth) {
-          if (typeof fromBlock !== "number") {
-            fromBlock = latestBlockNum
-          }
+        if (typeof fromBlock !== "number") {
+          fromBlock = latestBlockNum
+        }
 
-          if (fetchToLatest) {
-            toBlock = latestBlockNum
-          }
+        if (fetchToLatest) {
+          toBlock = latestBlockNum
+        }
 
-          if (fromBlock > toBlock || (!isFirstFetch && fromBlock === toBlock)) {
-            await sleep(ETH_HALF_ESTIMATED_AVERAGE_BLOCK_TIME)
-            continue
-          }
+        if (fromBlock > toBlock || (!isFirstFetch && fromBlock === toBlock)) {
+          await sleep(ETH_HALF_ESTIMATED_AVERAGE_BLOCK_TIME)
+          continue
+        }
 
-          if (isFirstFetch) {
-            isFirstFetch = false
-          }
-        } else {
-          // qtum waitforlogs will throw `Incorrect params(code: -8)`
-          // if `fromBlock > toBlock` (including `toBlock === "latest"`)
-          // therefor we need to make sure block `fromBlock` is mined
-          if (typeof fromBlock === "number" && fromBlock > latestBlockNum) {
-            await sleep(2000)
-            continue
-          }
+        if (isFirstFetch) {
+          isFirstFetch = false
         }
 
         const result = await this.getLogs({
-          ...(opts as any),
+          ...opts,
           fromBlock,
           toBlock
         })
 
-        if (isEth) {
-          const resultTypeSafe = result as IEthContractEventLog[]
-          for (const entry of resultTypeSafe) {
-            fn(entry as any)
-          }
-
-          fromBlock = latestBlockNum + 1
-        } else {
-          const resultTypeSafe = result as IQtumContractEventLogs
-          for (const entry of resultTypeSafe.entries) {
-            fn(entry as any)
-          }
-          fromBlock = resultTypeSafe.nextblock
+        for (const entry of result) {
+          fn(entry)
         }
+
+        fromBlock = latestBlockNum + 1
       }
     }
 
@@ -988,15 +648,11 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   /**
    * Subscribe to contract's events, use EventsEmitter interface.
    */
-  public logEmitter(
-    opts: TypeRPC extends QtumRPC
-      ? IQtumRPCGetLogsRequest
-      : IEthRPCGetLogsRequest = {} as any
-  ): ICancellableEventEmitter {
+  public logEmitter(opts: IGetLogsRequest = {}): ICancellableEventEmitter {
     const emitter = new EventEmitter()
 
     const cancel = this.onLog((entry) => {
-      const key = (entry.event && entry.event.type) || "?"
+      const key = (entry.event && entry.event._eventName) || "?"
       emitter.emit(key, entry)
     }, opts)
 
@@ -1010,35 +666,9 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
   }
 
   private _makeSendTxReceipt(
-    receipt: TypeRPC extends QtumRPC
-      ? IQtumRPCGetTransactionReceiptResult
-      : IEthRPCGetTransactionReceiptResult
-  ): TypeRPC extends QtumRPC
-    ? IQtumTransactionReceipt
-    : IEthTransactionReceipt {
-    const { rpc } = this
-    let rawlogs: ITransactionLog[]
-    let receiptNoLog:
-      | Omit<IQtumRPCGetTransactionReceiptResult, "log">
-      | Omit<IEthRPCGetTransactionReceiptResult, "logs">
-
-    if (rpc instanceof QtumRPC) {
-      const {
-        log,
-        ...receiptWithoutLog
-      } = receipt as IQtumRPCGetTransactionReceiptResult
-      rawlogs = log
-      receiptNoLog = receiptWithoutLog
-    } else if (rpc instanceof EthRPC) {
-      const {
-        logs: _rawlogs,
-        ...receiptWithoutLog
-      } = receipt as IEthRPCGetTransactionReceiptResult
-      rawlogs = _rawlogs
-      receiptNoLog = receiptWithoutLog
-    } else {
-      throw new Error("Unsupported rpc type")
-    }
+    receipt: IGetTransactionReceiptResult
+  ): ITransactionReceipt {
+    const { logs: rawlogs, ...receiptNoLog } = receipt
 
     const logs = rawlogs.map((rawLog) => this.logDecoder.decode(rawLog)!)
 
@@ -1046,6 +676,6 @@ export class Contract<TypeRPC extends QtumRPC | EthRPC> {
       ...receiptNoLog,
       logs,
       rawlogs
-    } as any
+    }
   }
 }

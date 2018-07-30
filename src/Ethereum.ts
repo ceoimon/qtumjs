@@ -3,13 +3,13 @@ import { IContractsRepoData, ContractsRepo } from "./ContractsRepo"
 import { Contract } from "./Contract"
 
 /**
- * The `Ethereum` class is an instance of the `qtumjs` API.
+ * The `Ethereum` class is an instance of the `qtumjs-eth` API.
  *
  * @param providerURL URL of the ethereum RPC service.
  * @param repoData Information about Solidity contracts.
  */
 export class Ethereum extends EthRPC {
-  private repo: ContractsRepo<EthRPC>
+  private repo: ContractsRepo
 
   constructor(providerURL: string, repoData?: IContractsRepoData) {
     super(providerURL)
@@ -18,7 +18,7 @@ export class Ethereum extends EthRPC {
       contracts: {},
       libraries: {},
       related: {},
-      ...repoData,
+      ...repoData
     })
   }
 
@@ -30,7 +30,7 @@ export class Ethereum extends EthRPC {
    *
    * @param name The name of a deployed contract
    */
-  public contract(name: string): Contract<EthRPC> {
+  public contract(name: string): Contract {
     return this.repo.contract(name)
   }
 }

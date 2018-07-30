@@ -4,28 +4,18 @@ import { assert } from "chai"
 import { repoData, ethRpc, assertThrow } from "./test"
 import { Contract } from "./Contract"
 
-describe("Contract<EthRPC>", () => {
+describe("Contract", () => {
   // don't act as sender
-  const {
-    sender: _,
-    ...info
-  } = repoData.contracts.eth_Methods
+  const { sender: _, ...info } = repoData.contracts.Methods
 
   const contract = new Contract(ethRpc, info)
 
   describe("#call", async () => {
     it("calls a method and get returned value", async () => {
       const result = await contract.call("getFoo")
-      assert.hasAllKeys(result, [
-        "logs",
-        "outputs",
-        "rawResult"
-      ])
+      assert.hasAllKeys(result, ["logs", "outputs", "rawResult"])
 
-      const {
-        outputs,
-        rawResult,
-      } = result
+      const { outputs, rawResult } = result
 
       assert.isString(rawResult)
       assert.isArray(outputs)
@@ -51,7 +41,10 @@ describe("Contract<EthRPC>", () => {
     })
 
     describe("method overloading", () => {
-      const overload = new Contract(ethRpc, repoData.contracts.eth_MethodOverloading)
+      const overload = new Contract(
+        ethRpc,
+        repoData.contracts.MethodOverloading
+      )
 
       it("calls a method and get returned value", async () => {
         let result
@@ -81,19 +74,20 @@ describe("Contract<EthRPC>", () => {
 
   describe("ABI encoding", async () => {
     it("can encode address[]", async () => {
-      const logs = new Contract(ethRpc, repoData.contracts.eth_ArrayArguments)
+      const logs = new Contract(ethRpc, repoData.contracts.ArrayArguments)
 
-      const calldata = logs.encodeParams("takeArray", [[
-        "aa00000000000000000000000000000000000011",
-        "bb00000000000000000000000000000000000022",
-      ]])
+      const calldata = logs.encodeParams("takeArray", [
+        [
+          "0xaa00000000000000000000000000000000000011",
+          "0xbb00000000000000000000000000000000000022"
+        ]
+      ])
 
       assert.equal(
         calldata,
         // tslint:disable-next-line:max-line-length
-        `0xee3b88ea00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000aa00000000000000000000000000000000000011000000000000000000000000bb00000000000000000000000000000000000022`,
+        `0xee3b88ea00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000aa00000000000000000000000000000000000011000000000000000000000000bb00000000000000000000000000000000000022`
       )
-
     })
   })
 
@@ -136,16 +130,17 @@ describe("Contract<EthRPC>", () => {
   })
 
   describe("event logs", () => {
-    const logs = new Contract(ethRpc, repoData.contracts.eth_Logs)
+    const logs = new Contract(ethRpc, repoData.contracts.Logs)
 
     it("decodes logs for call", async () => {
       const tx = await logs.send("emitFooEvent", ["abc"])
       const receipt = await tx.confirm(0)
       assert.deepEqual(receipt.logs, [
         {
-          type: "FooEvent",
-          a: "abc",
-        },
+          0: "abc",
+          _eventName: "FooEvent",
+          a: "abc"
+        }
       ])
     })
   })

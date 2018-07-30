@@ -3,15 +3,12 @@
 if (typeof Buffer === "undefined") {
   const { Buffer } = require("buffer")
   Object.assign(window, {
-    Buffer,
+    Buffer
   })
 }
 
 export * from "./abi"
 export * from "./Contract"
-export * from "./rpcCommonTypes"
-export * from "./QtumRPC"
-export * from "./Qtum"
 export * from "./TxReceiptPromise"
 export * from "./ethjs-abi"
 export * from "./EthRPC"
