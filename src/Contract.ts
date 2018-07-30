@@ -530,20 +530,7 @@ export class Contract {
   }
 
   /**
-   * Get contract event logs, up to the latest block. By default, it starts looking
-   * for logs from the beginning of the blockchain.
-   * @param req
-   */
-  public async logs(req: IGetLogsRequest = {}): Promise<IContractEventLog[]> {
-    return this.getLogs({
-      fromBlock: 0,
-      toBlock: "latest",
-      ...req
-    })
-  }
-
-  /**
-   * Get contract event logs. Long-poll wait if no log is found.
+   * Get contract event logs.
    * @param req (optional) IRPCWaitForLogsRequest
    */
   public async getLogs(
