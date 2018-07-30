@@ -11,8 +11,8 @@ import { Contract } from "./Contract"
 export class Ethereum extends EthRPC {
   private repo: ContractsRepo
 
-  constructor(providerURL: string, repoData?: IContractsRepoData) {
-    super(providerURL)
+  constructor(providerURL: string, repoData?: IContractsRepoData, sender?: string) {
+    super(providerURL, sender)
     this.repo = new ContractsRepo(this, {
       // massage the repoData by providing empty default properties
       contracts: {},
