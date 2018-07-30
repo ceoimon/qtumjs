@@ -13,13 +13,9 @@ describe("Contract", () => {
   describe("#call", async () => {
     it("calls a method and get returned value", async () => {
       const result = await contract.call("getFoo")
-      assert.hasAllKeys(result, ["logs", "outputs", "rawResult"])
 
-      const { outputs, rawResult } = result
-
-      assert.isString(rawResult)
-      assert.isArray(outputs)
-      assert.isNumber(outputs[0].toNumber())
+      assert.isArray(result)
+      assert.isNumber(result[0].toNumber())
     })
 
     it("throws error if method doesn't exist", async () => {
@@ -49,25 +45,25 @@ describe("Contract", () => {
       it("calls a method and get returned value", async () => {
         let result
         result = await overload.call("foo")
-        assert.equal(result.outputs[0], "foo()")
+        assert.equal(result[0], "foo()")
 
         result = await overload.call("foo()")
-        assert.equal(result.outputs[0], "foo()")
+        assert.equal(result[0], "foo()")
 
         result = await overload.call("foo(uint256)", [1])
-        assert.equal(result.outputs[0], "foo(uint256)")
+        assert.equal(result[0], "foo(uint256)")
         result = await overload.call("foo(string)", ["a"])
-        assert.equal(result.outputs[0], "foo(string)")
+        assert.equal(result[0], "foo(string)")
 
         result = await overload.call("foo(uint256,uint256)", [1, 2])
-        assert.equal(result.outputs[0], "foo(uint256,uint256)")
+        assert.equal(result[0], "foo(uint256,uint256)")
         result = await overload.call("foo(int256,int256)", [1, 2])
-        assert.equal(result.outputs[0], "foo(int256,int256)")
+        assert.equal(result[0], "foo(int256,int256)")
 
         result = await overload.call("foo", [1, 2, 3])
-        assert.equal(result.outputs[0], "foo(int256,int256,int256)")
+        assert.equal(result[0], "foo(int256,int256,int256)")
         result = await overload.call("foo(int256,int256,int256)", [1, 2, 3])
-        assert.equal(result.outputs[0], "foo(int256,int256,int256)")
+        assert.equal(result[0], "foo(int256,int256,int256)")
       })
     })
   })
@@ -119,7 +115,7 @@ describe("Contract", () => {
       ])
 
       const result = await contract.call("getFoo")
-      assert.equal(result.outputs[0].toNumber(), v)
+      assert.equal(result[0].toNumber(), v)
     })
 
     it("throws error if method exists but is constant", async () => {

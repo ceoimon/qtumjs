@@ -90,24 +90,6 @@ export interface IDeployedContractInfo extends IContractInfo {
 }
 
 /**
- * The result of calling a contract method, with decoded outputs.
- */
-export interface ICallResult {
-  /**
-   * ABI-decoded outputs
-   */
-  outputs: any[]
-
-  /**
-   * ABI-decoded logs
-   * note: ethereum call result will not contain any logs
-   */
-  logs: Array<IParsedLog | null>
-
-  rawResult: string
-}
-
-/**
  * Options for `send` to a contract method.
  */
 export interface IContractSendRequestOptions {
@@ -273,11 +255,8 @@ export class Contract {
     method: string,
     args: any[] = [],
     opts: IContractCallRequestOptions = {}
-  ): Promise<ICallResult> {
-    const callResult = await this.rawCall(method, args, opts)
-
-    const output = callResult
-    const decodedLogs: Array<IParsedLog | null> = []
+  ): Promise<any[]> {
+    const output = await this.rawCall(method, args, opts)
 
     let decodedOutputs = []
     if (output !== "") {
@@ -285,11 +264,7 @@ export class Contract {
       decodedOutputs = decodeOutputs(methodABI, output)
     }
 
-    return {
-      rawResult: callResult,
-      outputs: decodedOutputs,
-      logs: decodedLogs
-    }
+    return decodedOutputs
   }
 
   /**
@@ -307,7 +282,7 @@ export class Contract {
     opts: IContractCallRequestOptions = {}
   ): Promise<any> {
     const result = await this.call(method, args, opts)
-    return result.outputs[0]
+    return result[0]
   }
 
   public async returnNumber(
@@ -316,7 +291,7 @@ export class Contract {
     opts: IContractCallRequestOptions = {}
   ): Promise<number> {
     const result = await this.call(method, args, opts)
-    const val = result.outputs[0]
+    const val = result[0]
 
     // Convert big number to JavaScript number
     if (typeof val.toNumber !== "function") {
