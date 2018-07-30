@@ -1,6 +1,11 @@
 import { RPCRaw } from "./RPCRaw"
 import { ITransactionLog, IPromiseCancel } from "./rpcCommonTypes"
-import { hexlify, hexStripZeros, add0xPrefix, toNonNumberBlock } from "./convert"
+import {
+  hexlify,
+  hexStripZeros,
+  add0xPrefix,
+  toNonNumberBlock
+} from "./convert"
 
 export interface IEthRPCSendTransactionRequest {
   /**
@@ -101,7 +106,7 @@ export interface IEthRPCGetTransactionReceiptBase {
   cumulativeGasUsed: string
   gasUsed: string
 
-  contractAddress?: string
+  contractAddress: string | null
 }
 
 export enum ETH_TRANSACTION_STATUS {
@@ -307,8 +312,8 @@ export class EthRPC extends RPCRaw {
     block: typeBlockTags = "latest"
   ): Promise<number> {
     const count = await this.rawCall("eth_getTransactionCount", [
-      address,
-      block
+      add0xPrefix(address),
+      toNonNumberBlock(block)
     ])
     return Number(count)
   }
@@ -317,7 +322,10 @@ export class EthRPC extends RPCRaw {
     address: string,
     block: typeBlockTags = "latest"
   ): Promise<string> {
-    return await this.rawCall("eth_getBalance", [address, block])
+    return await this.rawCall("eth_getBalance", [
+      add0xPrefix(address),
+      toNonNumberBlock(block)
+    ])
   }
 
   public getLogs(
@@ -345,9 +353,13 @@ export class EthRPC extends RPCRaw {
       })
     }
 
-    const result = this.rawCall("eth_getLogs", [{ fromBlock, toBlock, address, topics }], {
-      cancelToken: cancelTokenSource.token
-    }) as IPromiseCancel<any>
+    const result = this.rawCall(
+      "eth_getLogs",
+      [{ fromBlock, toBlock, address, topics }],
+      {
+        cancelToken: cancelTokenSource.token
+      }
+    ) as IPromiseCancel<any>
 
     return Object.assign(result, {
       cancel: cancelTokenSource.cancel.bind(cancelTokenSource)
