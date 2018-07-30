@@ -36,13 +36,13 @@ async function transfer(fromAddr, toAddr, amount) {
 Run [Ethereum Test RPC (Ganache CLI)](https://github.com/trufflesuite/ganache-cli):
 
 ```
-ganache-cli
+npm run testrpc
 ```
 
 Deploy test contracts:
 
 ```
-export ETH_RPC=http://{$eth_sender_Address}:@localhost:8545
+export ETH_RPC=http://0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1:@localhost:8545
 sh deploy-test-contracts.sh
 ```
 

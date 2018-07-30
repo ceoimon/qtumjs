@@ -51,6 +51,8 @@ export interface IContractSendResult extends IGetTransactionResult {
    * Wait for transaction confirmations.
    */
   confirm: IContractSendConfirmFunction
+
+  txid: string
 }
 
 /**
@@ -544,6 +546,7 @@ export class Contract {
 
     const sendTx = {
       ...transaction,
+      txid,
       method,
       confirm
     }
